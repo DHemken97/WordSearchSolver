@@ -1,0 +1,168 @@
+﻿@using System.Linq
+@using WordSearchSolver
+@using WordSearchSolverWebUi.Data
+
+@if (IsLoading)
+{
+    <center><p>Searching...</p></center>
+}
+else
+{
+    <style>
+        .word-search-container {
+            display: flex;
+        }
+
+        .word-search-board {
+            margin-right: 20px;
+        }
+
+        .word-search-row {
+            display: flex;
+        }
+
+        .word-search-row span {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            text-align: center;
+            line-height: 30px;
+            font-weight: normal;
+        }
+
+        .highlighted {
+            font-weight: bold;
+            color: red;
+            background: yellow;
+        }
+
+        .word-list {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .word-item {
+            margin-bottom: 10px;
+        }
+    </style>
+
+    <div class="word-search-container">
+        <div class="word-search-board">
+            @foreach (var row in WordSearch)
+            {
+                <div class="word-search-row">
+                    @foreach (var cell in row)
+                    {
+                        <span class="@GetCellClass(cell)">@cell.Letter.ToString().ToUpper()</span>
+                    }
+                </div>
+            }
+        </div>
+        <div class="word-list">
+            <h1>Words:</h1>
+            @foreach (var word in WordList)
+            {
+                <div class="word-item">
+                    <span @onmouseover="(x) => HighlightWord(word)" @onmouseout="ResetHighlightedLetters">
+                        @word
+                    </span>
+                </div>
+            }
+        </div>
+        <br/>
+        <br/>
+        <br/>
+        
+        <div class="word-list">
+            <h1>Additional Words:</h1>
+            @foreach (var word in AllResults)
+            {
+                <div class="word-item">
+                    <span @onmouseover="(x) => HighlightWord(word)" @onmouseout="ResetHighlightedLetters">
+                        @word
+                    </span>
+                </div>
+            }
+        </div>
+
+
+    </div>
+
+
+}
+
+@code {
+
+    private bool IsLoading;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        base.OnAfterRender(firstRender);
+
+        if (!firstRender) return;
+
+        IsLoading = true;
+
+        WordSearch = ExampleDataProvider.GetTestBoard().Select((r, y) => r.Select((c, x) => new WordCell { Letter = c, X = x, Y = y }).ToList()).ToList();
+        var solver = new Solver();
+        solver.Board = ExampleDataProvider.GetTestBoard();
+        var results = solver.FindWords();
+        var testWords = ExampleDataProvider.GetTestWords();
+        WordList = results.Where(r => testWords.Any(t => t.ToUpper() == r.Word.ToUpper())).ToList();
+        AllResults = results.Where(r => testWords.All(t => t.ToUpper() != r.Word.ToUpper())).ToList();
+
+        IsLoading = false;
+        StateHasChanged();
+    }
+
+
+
+
+    public class WordCell
+    {
+        public char Letter { get; set; }
+        public bool IsHighlighted { get; set; }
+        public int X;
+        public int Y;
+    }
+
+    public List<List<WordCell>> WordSearch { get; set; } = new List<List<WordCell>>();
+
+    public List<SearchResult> WordList { get; set; } = new List<SearchResult>();
+    public List<SearchResult> AllResults { get; set; } = new List<SearchResult>();
+
+    private string GetCellClass(WordCell cell)
+    {
+        if (cell.IsHighlighted)
+            return "highlighted";
+        return string.Empty;
+    }
+
+ 
+    public void HighlightWord(SearchResult result)
+    {
+        var word = result.Word;
+        ResetHighlightedLetters();
+        foreach (var row in WordSearch)
+        {
+            foreach (var cell in row)
+            {
+                if (result.Positions.Any(p => p.X == cell.X && p.Y == cell.Y))
+                    cell.IsHighlighted = true;
+            }
+        }
+        StateHasChanged();
+        
+    }
+
+    private void ResetHighlightedLetters()
+    {
+        foreach (var row in WordSearch)
+        {
+            foreach (var cell in row)
+            {
+                cell.IsHighlighted = false;
+            }
+        }
+    }
+}
